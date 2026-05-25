@@ -1,0 +1,145 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id              String        @id @default(uuid())
+  email           String        @unique
+  username        String        @unique
+  passwordHash    String
+  balance         Float         @default(0.0) // Системный баланс пользователя
+  role            Role          @default(USER)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  products        Product[]
+  ordersAsBuyer   Order[]       @relation("BuyerOrders")
+  ordersAsSeller  Order[]       @relation("SellerOrders")
+  messages        Message[]
+  transactions    Transaction[]
+  reviewsGiven    Review[]      @relation("Reviewer")
+  reviewsReceived Review[]      @relation("ReviewTarget")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model Category {
+  id       String    @id @default(uuid())
+  name     String    @unique
+  slug     String    @unique
+  products Product[]
+}
+
+model Product {
+  id          String        @id @default(uuid())
+  title       String
+  description String
+  price       Float
+  status      ProductStatus @default(ACTIVE)
+
+  sellerId    String
+  seller      User          @relation(fields: [sellerId], references: [id])
+
+  categoryId  String
+  category    Category      @relation(fields: [categoryId], references: [id])
+
+  orders      Order[]
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+  SOLD
+}
+
+model Order {
+  id           String        @id @default(uuid())
+  price        Float         // Цена фиксируется на момент оформления заказа
+  status       OrderStatus   @default(PAID)
+
+  buyerId      String
+  buyer        User          @relation("BuyerOrders", fields: [buyerId], references: [id])
+
+  sellerId     String
+  seller       User          @relation("SellerOrders", fields: [sellerId], references: [id])
+
+  productId    String
+  product      Product       @relation(fields: [productId], references: [id])
+
+  messages     Message[]
+  transactions Transaction[]
+  review       Review?
+
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+enum OrderStatus {
+  PAID        // Покупатель оплатил (деньги в буфере)
+  DELIVERED   // Продавец передал товар
+  COMPLETED   // Покупатель подтвердил получение (деньги у продавца)
+  DISPUTE     // Открыт спор
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  text      String
+
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id])
+
+  senderId  String
+  sender    User     @relation(fields: [senderId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+model Transaction {
+  id        String          @id @default(uuid())
+  amount    Float
+  type      TransactionType
+
+  userId    String
+  user      User            @relation(fields: [userId], references: [id])
+
+  orderId   String?
+  order     Order?          @relation(fields: [orderId], references: [id])
+
+  createdAt DateTime        @default(now())
+}
+
+enum TransactionType {
+  DEPOSIT         // Пополнение баланса
+  ESCROW_HOLD     // Удержание средств (заморозка при заказе)
+  ESCROW_RELEASE  // Перевод средств продавцу после успешной сделки
+  WITHDRAWAL      // Вывод средств
+  REFUND          // Возврат средств (например, после спора)
+}
+
+model Review {
+  id         String   @id @default(uuid())
+  rating     Int      // 1-5 звезд
+  comment    String?
+
+  orderId    String   @unique
+  order      Order    @relation(fields: [orderId], references: [id])
+
+  reviewerId String
+  reviewer   User     @relation("Reviewer", fields: [reviewerId], references: [id])
+
+  targetId   String
+  target     User     @relation("ReviewTarget", fields: [targetId], references: [id])
+
+  createdAt  DateTime @default(now())
+}
