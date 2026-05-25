@@ -1,0 +1,6 @@
+{
+  "name": "FunPay Clone Marketplace",
+  "description": "C2C digital goods marketplace with safe escrow system.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
